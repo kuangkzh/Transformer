@@ -58,3 +58,25 @@ class Decoder(nn.Module):
         for layer in self.layers:
             x = layer(x, s, src_mask, tgt_mask)
         return x
+
+
+class Transformer(nn.Module):
+    def __init__(self, src_vocab_size, src_max_len, tgt_vocab_size, tgt_max_len,
+                 N=6, d_model=512, h=8, dff=2048, dropout=0.1):
+        super(Transformer, self).__init__()
+        self.src_embedding = nn.Embedding(src_vocab_size, d_model)
+        self.tgt_embedding = nn.Embedding(tgt_vocab_size, d_model)
+        self.src_pe = PositionalEncoding(d_model, dropout, src_max_len)
+        self.tgt_pe = PositionalEncoding(d_model, dropout, tgt_max_len)
+        self.encoder = Encoder(d_model, dff, h, dropout, N)
+        self.decoder = Decoder(d_model, dff, h, dropout, N)
+        self.linear = nn.Linear(d_model, tgt_vocab_size)
+        self.softmax = nn.Softmax(dim=-1)
+
+    def forward(self, src_seq, tgt_seq, src_mask=None, tgt_mask=None):
+        src_seq = self.src_pe(self.src_embedding(src_seq))
+        tgt_seq = self.src_pe(self.src_embedding(tgt_seq))
+        enc_src = self.encoder(src_seq, src_mask)
+        output = self.decoder(tgt_seq, enc_src, src_mask, tgt_mask)
+        output = self.softmax(self.linear(output))
+        return output
